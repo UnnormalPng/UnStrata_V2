@@ -2,7 +2,7 @@
 
 # UnStrata V2
 
-UnStrata V2 is a sovereign, ultra-fast local desktop runtime for large AI models. It is designed to run heavy Sparse Mixture-of-Experts (MoE) models (up to 120B+ parameters) on regular consumer PCs with limited video memory.
+UnStrata V2 is a sovereign, ultra-fast local desktop runtime for large AI models. It is designed to run heavy Sparse Mixture-of-Experts (MoE) models on regular consumer PCs with limited video memory.
 
 Completely free from cloud dependencies, telemetry, proprietary licensing checks, and Electron bloat.
 
