@@ -107,3 +107,22 @@ Building a self-contained, local agentic workstation on Windows 11 required solv
 ### Phase 4: Clean Prefab Frontend (`ui-kit`) & Native CPU Audio
 * **Full UI Replacement:** Removing the legacy minified React bundle and CSS patch layer in favor of a lightweight, schema-driven component frontend (`Preact/React + Tailwind + ui-kit` prefabs: `kitCard`, `kitRow`, `kitToggle`, `kitSelect`, `kitSlider`, `kitButton`) with live `:8080/metrics` throughput telemetry.
 * **100% Python-Free Voice:** Replacing the final voice bridge (`:47932`) with native `whisper-rs` (`whisper.cpp`) pinned strictly to CPU `AVX2` so 100% of GPU VRAM remains dedicated to MoE inference.
+
+## ⚡ Hardware Tiers & Throughput Calculations
+
+Because Sparse MoE inference during token generation (decode) is **memory-bandwidth-bound** rather than compute-bound, `UnStrata_V2` maximizes throughput by matching active parameter reads (`~6B` active weights per token, `~1.0 GB` in `TQ1_0` quantization) to the fastest available memory bus and amplifying decode speed via **Multi-Token Prediction (MTP)** speculative drafting (`--spec 6`):
+
+* **Tier 1 — VRAM (`288–1,792 GB/s`):** Holds dense/shared layers and compressed `k8v4` KV-cache (`~2.3 ms` per pass on a `288 GB/s` bus).
+* **Tier 2 — System RAM (`51.2–96.0 GB/s`):** Pins hot routed experts (`~6–8 ms` per pass on dual-channel DDR4-3200).
+* **Tier 3 — NVMe `mmap` (`3.4–7.4 GB/s`):** Streams only cold tail experts (`<15%` Zipfian miss rate), while MTP draft verification validates up to 6 tokens in a single parallel pass (**1.8×–2.5×** effective speedup).
+
+### Recommended Configurations & Expected Performance
+
+| Hardware Tier | Bus & Memory Specs | Recommended Engine Flags | Target Model Scale | Expected Decode |
+| :--- | :--- | :--- | :--- | :--- |
+| **Entry (12 GB VRAM)**<br>RTX 3060 12GB + 32 GB DDR4-3200 | `360 GB/s` GDDR6<br>`51.2 GB/s` DDR4<br>PCIe 4.0 x16 | `--resident-budget-gib 18.0`<br>`--vram-reserve-mib 1536`<br>`--kv k8v4 --kv-resident 16384`<br>`--spec 4` | MoE `35B–80B` (`TQ1_0`/`IQ2`)<br>or Dense `14B` (`Q4_K_M`) | **18–28 tok/s** (MoE)<br>**25–36 tok/s** (14B) |
+| **Developer Reference (16 GB VRAM)**<br>RTX 4060 Ti 16GB + Ryzen 7 5700X + 32 GB DDR4-3200 + NVMe | `288 GB/s` GDDR6<br>`51.2 GB/s` DDR4<br>PCIe 3.0 x8 (`~6.5 GB/s`) | `--resident-budget-gib 20.0`<br>`--vram-reserve-mib 2048`<br>`--kv k8v4 --kv-resident 32768`<br>`--pool-workers 6 --spec 6` | Sparse MoE `80B–125B`<br>(`80.7 GB` weights + MTP draft) | **30–50+ tok/s** decode<br>**~200 tok/s** prefill |
+| **Performance 16 GB (GDDR6X/GDDR7)**<br>RTX 4070 Ti Super / 5070 Ti / 5080 + 64 GB DDR5-6000 | `672–960 GB/s` VRAM<br>`96.0 GB/s` DDR5<br>PCIe 4.0/5.0 x16 | `--resident-budget-gib 48.0`<br>`--vram-reserve-mib 2048`<br>`--kv k8v4 --kv-resident 65536`<br>`--pool-workers 8 --spec 6` | MoE `100B–140B` (`Q3`/`Q4_K_M`)<br>or Dense `24B–27B` | **45–75 tok/s** (MoE)<br>**60–90 tok/s** (24B) |
+| **Workstation (24–32 GB VRAM)**<br>RTX 3090 / 4090 (24GB) or RTX 5090 (32GB) + 64–128 GB DDR5 | `936–1,792 GB/s` VRAM<br>`96.0 GB/s` DDR5<br>PCIe 4.0/5.0 x16 | `--resident-budget-gib 80.0`<br>`--vram-reserve-mib 2560`<br>`--kv q8_0 --kv-resident 131072`<br>`--pool-workers 10 --spec 8` | Large MoE `120B–235B`<br>or Dense `32B–70B` | **55–110+ tok/s** (MoE)<br>**50–85 tok/s** (32B) |
+
+
