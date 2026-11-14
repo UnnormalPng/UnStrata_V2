@@ -1,81 +1,166 @@
 # UnStrata_V2
 
-**A sovereign, open-source local AI workstation for Windows 11 engineered to run Sparse Mixture-of-Experts (MoE) and dense models alongside autonomous agents on consumer hardware.**
+**A sovereign, open-source local AI workstation and autonomous agent host for Windows 11 — engineered to run 125B+ Sparse Mixture-of-Experts (MoE) and dense models on consumer hardware with zero cloud telemetry and ~35 MB idle RAM.**
 
-`UnStrata_V2` eliminates cloud dependencies, telemetry, and bloated Electron runtimes. Built around a native **Rust (Tauri v2 + WebView2)** host that idles at **~35 MB RAM** (compared to ~1.8 GB for Electron-based apps), it orchestrates multi-tier VRAM/RAM/NVMe offloading so virtually any local MoE or dense model—as well as any OpenAI-compatible inference server—can run smoothly on a single consumer GPU.
-
----
-
-## 📊 Current Project Status (~62% Complete)
-
-    Overall Progress:         [████████████░░░░░░░░] ~62%
-
-    Native Rust Core:         [█████████████████░░░]  85%  (154 unit tests passing, 11 native tools)
-    Engine & Memory Tiering:  [██████████████░░░░░░]  70%  (3-tier MoE offload ready, tuning RAM/VRAM margins)
-    Security & Sandboxing:    [█████████░░░░░░░░░░░]  45%  (Win32 Job Objects & SSRF active; CSRF & anti-bypass next)
-    Frontend UI (ui-kit):     [█████░░░░░░░░░░░░░░░]  25%  (Temporary patch layer active; clean prefab UI next)
-    Native Vision Loop:       [███░░░░░░░░░░░░░░░░░]  15%  (Win32 window/input primitives ready; CapturePreview next)
+`UnStrata_V2` replaces bloated Electron/Chromium wrappers (~1.8 GB RAM) with a native **Rust (`Tauri v2` + `WebView2`, Windows Subsystem 2 GUI)** host bound to `127.0.0.1:47931`. It orchestrates multi-tier **VRAM / System RAM / NVMe `mmap`** offloading alongside a zero-trust Win32 execution sandbox, a native DOM + pixel vision inspector (`ui_map` / `visual_inspect`), and deterministic verification tools so an autonomous coding agent can inspect, edit, rebuild, and restart itself safely on a single consumer GPU.
 
 ---
 
-## 🏗️ Architecture Overview
+## 📊 Current Project Status (~70% Complete)
 
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │ Frontend UI (WebView2 / HTML+JS+CSS)                                │
-    │ Served locally over loopback with no-cache headers                  │
-    └───────────────────────────────┬─────────────────────────────────────┘
-                                    │ HTTP / SSE + Tauri IPC
-    ┌───────────────────────────────▼─────────────────────────────────────┐
-    │ Native Rust Host (src-tauri/, ~35 MB idle RAM)                      │
-    │ • API Router & SSE Proxy        • Frame 0 & Auto Thinking Router    │
-    │ • 11 Native Tools (FS/Web/OS)   • Native Telemetry (/api/hardware)  │
-    │ • Win32 Job Objects & Lifecycle • Panic Hook & Single-Instance Lock │
-    └───────────────┬───────────────────────────────────┬─────────────────┘
-                    │ Embedded Mode (:8080)             │ External Mode
-    ┌───────────────▼───────────────────┐   ┌───────────▼─────────────────┐
-    │ Local Inference Engine            │   │ OpenAI-Compatible Endpoints │
-    │ • VRAM: Dense layers + k8v4 KV    │   │ • llama.cpp / Ollama        │
-    │ • RAM: Resident hot MoE experts   │   │ • vLLM / LM Studio          │
-    │ • NVMe: mmap cold expert streaming│   └─────────────────────────────┘
-    │ • Speculative MTP drafting        │
-    └───────────────────────────────────┘
+```text
+Overall Progress:              [██████████████░░░░░░] ~70%
+
+Native Rust Core & IPC:        [██████████████████░░]  92%  (190 unit tests passing, 15 native tools, zero-trust firewall)
+Native Vision & Layout Loop:   [██████████████████░░]  90%  (CapturePreview + PrintWindow + dpr scaling + ui_map + Vision Proxy)
+Security & Win32 Sandboxing:   [██████████████████░░]  90%  (CSRF/Token firewall, Handle-List isolation, NTFS reparse/ADS guards)
+Engine & Memory Tiering:       [█████████████████░░░]  88%  (3-tier MoE offload, OS/VRAM margins, slot drain, :8080 guard)
+Frontend UI (Vanilla ES):      [█████░░░░░░░░░░░░░░░]  25%  (Legacy patch layer active; zero-bundler Vanilla ES kit next)
+Native CPU Audio (Whisper):    [████░░░░░░░░░░░░░░░░]  20%  (External bridge active; in-process CPU AVX2 FFI + Worklet next)
+Verify Coprocessor & KV Opts:  [███░░░░░░░░░░░░░░░░░]  15%  (verify_tools.rs, output spooling & anchored compaction next)
+```
+
+---
+
+## 🏗️ System Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Frontend UI (WebView2 / Modular Vanilla ES + CSS Tokens, No Bundler)        │
+│ • Strict CSP (script-src 'self') + synchronous boot-guard.js error trap     │
+│ • rAF top-level block freezing (Markdown/KaTeX) + content-visibility: auto  │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ Loopback HTTP/SSE (:47931) + Tauri IPC
+                                       │ (Origin/Host Firewall + X-UnStrata-Token)
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│ Native Rust Host (src-tauri/, ~35 MB idle RAM, zero bloat dependencies)     │
+│ • Byte-Stable Frame 0 & <0.1 ms Auto Thinking Classifier                    │
+│ • 15 Native Tools (FS / AST Outline / Search / Web / Vision / OS / Docs)    │
+│ • Hybrid Vision Loop: STA CapturePreview + PrintWindow + ui_map + Pixel-Diff │
+│ • Win32 Job Objects, Handle-List Spawning, Audit Logger & Out-of-Job Updater │
+└──────────────────┬───────────────────────────────────────┬──────────────────┘
+                   │ Embedded Mode (:8080)                 │ External Mode
+┌──────────────────▼───────────────────────┐   ┌───────────▼──────────────────┐
+│ Local Inference Engine (strata.exe)      │   │ OpenAI-Compatible Endpoints  │
+│ • Tier 1 VRAM: Dense layers + k8v4 KV    │   │ • llama.cpp / Ollama         │
+│ • Tier 2 RAM: ~20 GB resident hot experts│   │ • vLLM / LM Studio / Cloud   │
+│ • Tier 3 NVMe: mmap cold expert streaming│   └──────────────────────────────┘
+│ • Speculative MTP drafting (--spec 6)    │
+└──────────────────────────────────────────┘
+```
+
+---
+
+## 📁 Isolated Project Layout (`C:\UnStrata_V2`)
+
+Model weights (`80.7 GB` GGUF) are externalized outside the Git repository and linked into `Release\models` via an NTFS Directory Junction (`mklink /J`) with zero disk duplication:
+
+```text
+C:\UnStrata_Models\                     # Externalized 80.7 GB LLM weights (outside Git, attrib +I)
+└── whisper\                            # Isolated ggml-*.bin CPU speech models
+
+C:\UnStrata_V2\                         # Clean Git root (attrib +I, Defender excluded)
+├── .cargo\config.toml                  # [build] jobs = 2 (prevents rustc from evicting RAM experts)
+├── finish_migration.ps1                # Moves weights to C:\UnStrata_Models & links NTFS junction
+├── src-tauri\
+│   ├── Cargo.toml                      # Minimal dependencies; Win32 FFI via extern "system"
+│   ├── capabilities\default.json       # Tauri v2 IPC permissions for local WebView2
+│   └── src\
+│       ├── main.rs                     # Single-instance mutex, :47931 bind, tray, out-of-job updater
+│       ├── engine.rs                   # RAM/VRAM margins, --prompt-cache 2, :8080 guard, Prefetch
+│       ├── compat.rs                   # 15-tool registry, KV estimator, /api/models filtering
+│       ├── hardware.rs                 # Sub-ms CPU/RAM/GPU/VRAM telemetry (NVML + DXGI fallback)
+│       ├── desktop_vision.rs           # SendInput Focus Guard, privileged blacklist, emergency hotkey
+│       ├── pixel.rs                    # WebView2 CapturePreview + PrintWindow + native flate2 PNG
+│       ├── vision.rs                   # ui_map (650 ms), ui_zoom (+64 px), 10-slot Vision Proxy
+│       └── api\
+│           ├── mod.rs                  # Origin/Host/Token firewall, SSE keepalive/abort, audit.jsonl
+│           ├── tools.rs                # Handle-List shell, CP866/UTF-16 decoder, NTFS guards, spooling
+│           ├── prompt.rs               # Byte-stable Frame 0, THINK_KEEP_TURNS=7, Anchored Compaction
+│           ├── verify_tools.rs         # [Planned] compute_verify, data_probe, sys_probe
+│           └── tests.rs                # 190+ offline unit tests
+└── Release\
+    ├── unstrata.exe                    # Native Rust GUI host (~35 MB idle RAM)
+    ├── models\                         # NTFS Directory Junction -> C:\UnStrata_Models
+    ├── engine\ & serve\                # Inference runtime (:8080)
+    ├── data\                           # Configs, sessions (.jsonl), skills, logs (audit.jsonl/crash.log)
+    └── ui\                             # Modular Vanilla ES frontend (no Vite/Webpack/node_modules)
+```
+
+---
+
+## ⚙️ Core Mechanics & Subsystems
+
+### 1. Three-Tier MoE Memory Orchestration & Slot Synchronization
+Running a **125B Sparse MoE model (`80.7 GB` GGUF weights)** on a 16 GB GPU and 32 GB system RAM requires deterministic memory budgeting so Windows 11 never thrashes the NVMe pagefile:
+* **Dynamic OS & VRAM Headroom (`engine.rs`):** Enforces `OS_RESERVE_GIB = 10.0` via `GlobalMemoryStatusEx` (locking `~20.0 GiB` for hot routed MoE experts in DDR4 while leaving 10+ GiB for Windows, WebView2, and Rust builds) and sets `--vram-reserve-mib 2048` on `>= 12 GiB` GPUs (`1536` on `< 12 GiB`) to protect DWM and `CapturePreview` surfaces.
+* **KV-Cache Slot Capping (`--prompt-cache 2`):** Restricts KV cache allocation on `<= 32 GiB` RAM systems to 2 slots (1 active conversation + 1 service slot), preventing 4-slot KV allocations from evicting resident MoE experts back to SSD.
+* **Duplicate-Spawn Protection & Slot Drain:** Probes `127.0.0.1:8080` via `GetExtendedTcpTable` before spawning `strata.exe`. If an instance from the project directory is already serving `/v1/models`, the host attaches cleanly without duplicating 80.7 GB in memory. During cold long-context `prefill` (`25–45 s` to first token), Rust emits `: keepalive\n\n` SSE frames every `5 s` and marks cancelled slots (`cancelling`) on `AbortController` disconnect to prevent `BDONE` slot deadlocks on rapid retries.
+
+### 2. Byte-Stable `Frame 0`, `Auto` Thinking & Dual-Layer History
+* **Zero-Invalidation Prompt Caching (`prompt.rs`):** System instructions and all tool JSON schemas are serialized deterministically using `BTreeMap` and sorted vectors with normalized `\n` line endings. Dynamic `[MEMORY]` blocks and timestamps are kept out of `Frame 0` and injected into the first `user` turn so `--prompt-cache 2` survives across sessions.
+* **Dual-Layer Conversation State:** The UI renders clean assistant responses without `<think>` clutter, while the engine receives raw `<think>` blocks inside a sliding window (`THINK_KEEP_TURNS = 7`).
+* **Deterministic `<0.1 ms` Thinking Router:** Classifies prompt complexity on the fly (`low` / `medium` / `high`) and automatically throttles reasoning effort to `low` during multi-step tool-use loops to maximize KV throughput.
+* **Embedded vs. External Mode Parity:** Automatically disables `refusal_bias` and assistant syntax-locked prefill when connected to standard OpenAI-compatible external endpoints.
+
+### 3. Hybrid Native Vision & Layout Inspector (`desktop_vision.rs`, `pixel.rs`, `vision.rs`)
+Designed so the text-only 125B model can visually inspect and debug its own UI without burning context tokens on raw base64 images:
+* **Zero-Bloat Capture Pipeline:** Captures the WebView2 surface asynchronously via `ICoreWebView2::CapturePreview` (dispatched on the UI STA thread, rewound via `IStream::Seek(0)`, and awaited via `oneshot` with an `800 ms` timeout), with a Win32 `PrintWindow(hwnd, hdc, PW_CLIENTONLY | PW_RENDERFULLCONTENT)` fallback for external windows.
+* **DPI-Aware Coordinate & Color Verification:** Scales logical CSS rects from `ui_map` by `window.devicePixelRatio` (`dpr`) before cropping physical frames, encodes PNGs natively via `flate2` (`ZlibEncoder` + `Crc`), computes localized `Pixel-Diff` percentages, and runs deterministic `3×3` / `5×5` median `Pixel-Assert` checks in linearized sRGB. Never injects `data:image/png;base64,...` into LLM context.
+* **Semantic DOM/CSS Inspector (`ui_map` & `ui_zoom`):** Waits for active CSS animations (`document.getAnimations()`), inspects the live DOM/CSSOM in `~150–250` tokens, and flags `CLIPPED_*`, `OVERLAP` (`> 1.5 CSS px`, z-index and ancestor aware), `ZERO_HEIGHT`, `TRUNCATED_TEXT`, `VERTICAL_CRUSH`, `OCCLUDED_CENTER`, `CONTRAST_FAIL`, and `THEME_SURFACE_MISMATCH`.
+* **Optional Multi-Key `Vision Proxy`:** Supports up to 10 user-configured VLM slots (`Gemini`, `OpenRouter`, or custom OpenAI-compatible endpoints, disabled by default) with `+64 px` contextual padding, `Per-Provider Circuit Breakers`, exponential backoff, and strict key redaction.
+
+### 4. Zero-Trust Loopback Firewall, Win32 Isolation & Self-Update Lifecycle
+* **IPC & CSRF Firewall (`api/mod.rs`):** Validates `Origin` (`http://127.0.0.1:47931`, `http://tauri.localhost`, `https://tauri.localhost`), `Host`, and `OPTIONS` preflight headers, enforcing a cryptographic per-boot `X-UnStrata-Token` (delivered exclusively via Tauri IPC `get_boot_token`) on all `/api/*`, `/v1/*`, and mutating routes.
+* **Hardened Shell & Process Isolation (`api/tools.rs`, `engine.rs`):**
+  * Normalizes `cmd.exe` caret (`^`) escapes and quotes before deny-list inspection; blocks encoded PowerShell (`-e`/`-ec`/`-enc`), destructive `robocopy /MIR /purge`, `rd /s`, `format`, and `taskkill` targeting host/engine PIDs.
+  * Spawns subprocesses via `STARTUPINFOEXW` + `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` (preventing child processes from inheriting the `:47931` listener socket) inside `TOOLS_JOB` (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 32`).
+  * Passes `cmd.exe /d /c` commands via `CommandExt::raw_arg` (`chcp 65001 >nul 2>nul & <cmd>`) and decodes `UTF-16` BOM, `UTF-8`, `CP866`, and `CP1251` console streams cleanly.
+* **NTFS Traversal & Reparse Guards (`resolve_tool_path`):** Walks path components top-down via `symlink_metadata()`, rejecting symlinks, NTFS Junctions (such as `Release/models`), Alternate Data Streams (`:`), trailing dots/spaces, and 8.3 short-name bypasses (`GetLongPathNameW`).
+* **Non-Blocking Redacted Audit Trail:** Streams tool calls and HTTP routes over a bounded `mpsc` channel (`1024` capacity) to `Release/data/logs/audit.jsonl` (`10 MB` auto-rotation), masking API keys (`sk-`, `AIza`, `Bearer`, `?key=`, `-----BEGIN`).
+* **Crash-Safe Lifecycle & Self-Updater (`main.rs`):** Protects single-instance execution via `Local\UnStrataV2_Master_Instance_Mutex`, cleans orphaned `EBWebView/LOCK` processes prior to window creation, prevents system sleep via `SetThreadExecutionState` during active agent loops, captures full backtraces to `crash.log` via `std::panic::set_hook`, and spawns an out-of-job micro-updater (`--wait-pid`) to swap `unstrata.exe` -> `unstrata.exe.old` autonomously.
+
+---
+
+## 🧰 Built-In Native Agent Tools
+
+### Currently Implemented (15 Tools)
+
+| Tool | Mechanism | Purpose & Guardrails |
+| :--- | :--- | :--- |
+| `execute_command` | `STARTUPINFOEXW` + `TOOLS_JOB` | Async shell execution (`<= 30 s`), `CancelIoEx`, `CP866`/`CP1251` decoding, caret/quote deny-list |
+| `read_slice` | `BufReader` streaming | Line-range file reader with pagination (`<= 250` lines / `16 KB` cap) |
+| `file_outline` | Lexical Rust/JS/Py scanner | Extracts structs, traits, functions, and signatures without reading full files |
+| `write_file` / `edit_file` | Atomic `.tmp` + `sync_all` | UTF-8/BOM/CRLF-preserving file creation and exact-match patching with `mtime` guard |
+| `fast_search` | `ripgrep` + native fallback | High-speed codebase search with `--` arg barrier and `logs/`/`temp/` exclusions |
+| `file_search` | Directory walker (`POST /api/search`) | Fast filename discovery respecting NTFS reparse guards |
+| `read_skill` | Allowlisted Markdown loader | On-demand engineering runbooks (`rust_win32.md`, `win_internals.md`, `ui_layout.md`) |
+| `doc_extract` | Pure-Rust `flate2` ZIP/XML | `~1.4 ms` text extraction from `.docx`, `.xlsx`, and `.txt` |
+| `web_search` | HTTPS Exa API client | Web search with SSRF private-IP blocking and strict per-request timeouts |
+| `web_read_page` | Native HTML-to-text parser | Clean webpage extraction with redirect validation and secret redaction |
+| `visual_inspect` | `CapturePreview` + `PrintWindow` | DPI-scaled screenshot crop, `Pixel-Diff`, `3×3`/`5×5` `Pixel-Assert`, optional VLM proxy |
+| `ui_map` | WebView2 DOM/CSSOM bridge | `~150–250` token layout audit (`OVERLAP`, `CLIPPED_*`, `CONTRAST_FAIL`, `OCCLUDED_CENTER`) |
+| `ui_zoom` | Sub-rect DOM + `Pixel-Assert` | High-detail CSS/geometry inspection inside a target bounding box |
+| `desktop_inspect` | `EnumWindows` / `EnumChildWindows` | External Win32 window hierarchy and signed `i32` multi-monitor coordinates |
+| `desktop_action` | `SendInput` + `Focus Guard` | Foreground-verified mouse/keyboard automation with privileged-process blacklist |
+
+### Planned Deterministic Coprocessor (3 Multi-Tools)
+
+| Tool | Operations | Purpose & Guardrails |
+| :--- | :--- | :--- |
+| `compute_verify` | `calc`, `time`, `hash`, `json_check`, `regex_test` | Overflow-checked `i128` / IEEE-754 math, streaming `CRC32`/`SHA-256` (`<= 128 MiB`), bracket/JSON audit |
+| `data_probe` | `summary`, `filter`, `aggregate`, `top_n` | Streaming `.jsonl`/`.json`/`.csv` analyzer (`<= 32 MiB`, `2000 ms` budget, `<= 512 B` field clamp) |
+| `sys_probe` | `ports`, `processes` | Native `AF_INET`/`AF_INET6` TCP table (`GetExtendedTcpTable`) & Working Set process snapshot |
 
 ---
 
 ## 🛠️ Key Engineering Problems Already Solved
 
-Building a self-contained, local agentic workstation on Windows 11 required solving several low-level OS, memory, and runtime bottlenecks:
-
-* **Eliminated Electron Memory Bloat (~1.8 GB → ~35 MB RAM):** Replaced heavy Chromium/Node desktop wrappers with a native Rust Tauri v2 + WebView2 host (`Subsystem 2 GUI`), reclaiming nearly 2 GB of system memory for model weights and KV caches while decoupling completely from legacy ports (`:47831`).
-* **Resolved Windows Startup Access Violations (`0xC0000005`) & Nested Job Conflicts:** Fixed startup crashes by removing recursive host self-containment (`shelter_self`), implementing dynamic WebView2 runtime discovery without hardcoded versions, deferring DWM caption manipulation until window readiness, and adding a `SetPriorityClass` fallback to bypass `ERROR_INVALID_PARAMETER (87)` when launched inside restricted parent Job Objects.
-* **Amputated Slow Python Sidecars & Port Sprawl:** Eliminated external Python HTTP sidecars (`:47937`, `:47936`) and legacy `.py` scripts (`command_runner.py`, `doc_extract.py`, `exa_search.py`, `scrapling_reader.py`), moving execution directly into native Rust (~1.4 ms ZIP/XML document extraction, ~20 ms process spawning).
-* **Prevented Zombie Subprocess Trees & Hanging Commands:** Bound agent shell execution to Win32 `Job Objects` (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) with strict 30-second timeouts and forced process-tree termination (`taskkill /T /F`), preventing runaway child processes.
-* **Eliminated WMI / PowerShell Telemetry Stalls:** Replaced slow WMI/PowerShell hardware queries with sub-millisecond native Win32 and GPU driver calls (`GlobalMemoryStatusEx`, `GetSystemTimes`, and `NVML` with a `DXGI` fallback).
-* **Solved Cross-Platform Search & Path Traversal Edge Cases:** Fixed `ripgrep` case-insensitivity and Windows drive-letter colon parsing (`C:\...`), normalized extended-length `\\?\` paths, and enforced two-layer Path Traversal protection (`canonicalize` + strict allowlist validation) for on-demand skill loading.
-* **Balanced Reasoning Depth vs. KV-Cache Latency:** Built a `<0.1 ms` deterministic `Auto` Thinking Orchestrator (`classify_thinking_effort`) that dynamically scales reasoning effort based on prompt complexity and automatically drops to `low` effort during multi-step tool loops.
-* **Mitigated Refusal Loops & Multi-Instance Conflicts:** Implemented monolithic `Frame 0` prompt grounding, two-pass `Stealth Alignment Bypass` (`logit_bias` + syntax-locked prefill), Win32 `Single-Instance Mutex` window restoration, `Tray-only exit` background persistence, and a global `Panic Hook` (`crash.log`).
-
----
-
-## ✅ What Is Implemented
-
-### 1. Native Rust Core (`src-tauri/`)
-* **Modular Backend Architecture:** Refactored from a 6,700-line monolith into a clean, modular structure (`src-tauri/src/api/`: `mod.rs`, `prompt.rs`, `tools.rs`, `extract.rs`, `web.rs`, `tests.rs` alongside `main.rs`, `win.rs`, `engine.rs`, `compat.rs`, `hardware.rs`, `desktop_vision.rs`) backed by **154 passing unit tests** and zero FFI signature warnings.
-* **11 Built-In Native Agent Tools:**
-  * `execute_command` — Async `tokio::process::Command` execution inside Win32 Job Objects with 30-second timeout and process-tree cleanup.
-  * `read_slice` — Streaming line-range file reader (`BufReader`, up to 2,000 lines) to prevent context window flooding.
-  * `fast_search` & `file_search` (`POST /api/search`) — High-speed codebase search powered by `ripgrep` with a native fallback scanner and strict execution time budgets.
-  * `read_skill` — On-demand Markdown engineering skill loader (`rust_win32.md`, `win_internals.md`) with Path Traversal guards.
-  * `doc_extract` (`POST /api/extract`) — Pure-Rust ZIP/XML parser for `DOCX`, `XLSX`, and `TXT` built on `flate2` (~1.4 ms per file).
-  * `web_search` & `web_read_page` — Native HTTPS search (Exa API) and HTML-to-text extraction with SSRF protection blocking private IP ranges and unsafe redirects.
-  * `desktop_inspect` & `desktop_action` — Win32 UI inspection and input synthesis (`EnumWindows`, `EnumChildWindows`, `SendInput`).
-  * `voice_transcribe` — Local speech-to-text integration via `whisper-cli.exe` (`AVX2`).
-
-### 2. Model-Agnostic Inference & Memory Orchestration
-* **Universal MoE & External Provider Support (`Dual Backend`):**
-  * **Embedded Mode:** Runs any supported Sparse MoE or dense model locally via the C++/Python inference engine (`:8080`), dynamically partitioning weights across **VRAM** (dense layers + compressed `k8v4` KV-cache), **System RAM** (resident hot-expert pool), and **NVMe SSD** (`mmap` cold-expert streaming) with speculative `MTP` drafting. *(Reference benchmark: 34–50+ tok/s decode and ~200 tok/s prefill on an 80.7 GB 125B Sparse MoE model using a 16 GB VRAM GPU + 32 GB DDR4).*
-  * **External Provider Mode:** Seamlessly connects to any OpenAI-compatible server (`llama.cpp`, `Ollama`, `vLLM`, `LM Studio`) with persistent cold-start state recovery (`engine_backend.json`).
-* **Prompt & Telemetry Controls:** Monolithic `Frame 0` system architecture, `Stealth Alignment Bypass`, and live `x-unstrata-thinking-level` response headers.
+* **Eliminated Electron Memory Bloat (`~1.8 GB → ~35 MB RAM`):** Reclaimed nearly 2 GB of system memory for model weights and KV caches while decoupling completely from legacy ports (`:47831`).
+* **Resolved Windows Startup Access Violations (`0xC0000005`) & Nested Job Conflicts:** Removed recursive host self-containment (`shelter_self`), added dynamic WebView2 runtime discovery, deferred DWM caption styling until window readiness, and added a `SetPriorityClass` fallback against `ERROR_INVALID_PARAMETER (87)`.
+* **Amputated Slow Python Sidecars:** Eliminated external HTTP sidecars (`:47937`, `:47936`) for command execution, document parsing, search, and scraping in favor of sub-millisecond native Rust handlers.
+* **Fixed High-DPI (`125%` / `150%`) Vision Coordinate Drift:** Separated `client_origin` from DWM shadow bounds (`-7 px`) and scaled logical CSS coordinates by `dpr` prior to physical frame cropping.
+* **Eliminated WMI / PowerShell Telemetry Stalls:** Replaced slow WMI queries with sub-millisecond Win32/driver calls (`GlobalMemoryStatusEx`, `GetSystemTimes`, `NVML` + `DXGI`).
 
 ---
 
@@ -84,29 +169,28 @@ Building a self-contained, local agentic workstation on Windows 11 required solv
 * **OS:** Windows 11 x64 (with Microsoft Edge WebView2 Runtime)
 * **CPU:** x86_64 processor with `AVX2` support (8+ cores recommended for MoE expert routing and CPU audio)
 * **GPU:** NVIDIA GPU with 12–16+ GB VRAM for heavy local MoE/dense inference (or any GPU / CPU setup when using External Provider mode)
-* **RAM & Storage:** 32+ GB DDR4/DDR5 and a fast PCIe NVMe SSD (with system-managed or ≥32 GB Windows pagefile for large `mmap` model weights)
+* **RAM & Storage:** 32+ GB DDR4/DDR5 and a fast PCIe NVMe SSD (with system-managed or `>= 32–48 GB` Windows pagefile for `80+ GB` `mmap` model weights)
 
 ---
 
-## 🚧 What Is Not Yet Implemented (Roadmap)
+## 🚧 Roadmap: What Remains (~30%)
 
-### Phase 1: Memory Margin Tuning & Clean Workspace Migration *(In Progress)*
-* Raising `OS_RESERVE_GIB` (`6.0 → 10.0`) and setting adaptive VRAM reserves (`--vram-reserve-mib 2048` for ≥12 GB GPUs) to prevent swap and Commit Charge spikes under heavy `mmap` workloads.
-* Migrating to a short ASCII root path (`C:\UnStrata_V2`) with externalized model weights linked via NTFS Directory Junctions (`mklink /J`) and clean Git initialization.
+### Phase 1: Isolated Root Finalization (`C:\UnStrata_V2`) *(Finalizing)*
+* Execute `finish_migration.ps1` to move `80.7 GB` of GGUF weights into `C:\UnStrata_Models` and mount `C:\UnStrata_V2\Release\models` via NTFS Junction (`mklink /J`) with Windows Search indexing disabled (`attrib +I`).
 
-### Phase 2: Autonomous Dev Harness & Security Hardening
-* **Strict CSRF & IPC Token Firewall:** Enforcing `Origin` + `OPTIONS` preflight checks across all `/api/tools/*`, `/api/extract`, `/api/vision/*`, and `/api/desktop/*` routes, paired with a per-boot `X-UnStrata-Token` delivered exclusively via Tauri IPC.
-* **Command Guard & Encoding Hardening:** Locking `allow_any_cwd` against request overrides, normalizing `cmd.exe` caret (`^`) escapes and quotes before regex filtering, blocking encoded PowerShell (`-e`/`-ec`/`-enc`) and destructive `robocopy /MIR /purge` flags, protecting host/engine PIDs from `taskkill`, capping `TOOLS_JOB` active processes (`32`), and decoding Windows `CP866`/`CP1251` console output cleanly.
-* **KV-Cache Preservation & Context Tools:** Keeping `Frame 0` byte-identical across sessions (`--prompt-cache` optimization) with one-time `[MEMORY]` injection, separating UI `<think>` stripping from raw engine history, adding a lexical `file_outline` signature scanner, tracking external file `mtime` edits without OS folder locks, stripping `\\?\` prefixes before C++ CLIs, and writing masked tool traces to `Release/data/logs/audit.jsonl` (excluded from search).
-* **Self-Restart & Runtime Safeguards:** Out-of-job `.exe` self-updater for autonomous Rust rebuilds (`CARGO_BUILD_JOBS=2`), `SendInput` Focus Guard (`GetForegroundWindow`), global emergency `RegisterHotKey` modifier reset, `SetThreadExecutionState` lock-screen prevention during active agent loops, immediate SSE cancellation drop, and tool-loop step/cycle breakers.
+### Phase 2: Zero-Bundler Vanilla ES Frontend (`Release/ui/`)
+* Replace the legacy minified React bundle and CSS patch layer with modular ES modules (`tokens.css`, `ui-kit.css`, `chat.css`, `boot-guard.js`, `stream.js`, `monitor.js`) under a strict `script-src 'self'` CSP, `rAF` top-level block freezing (preserving `<ol>` numbering and `KaTeX`), `content-visibility: auto`, and live `:8080` metrics polling.
 
-### Phase 3: Native Vision Loop (`visual_inspect`)
-* **Zero-Bloat Window Capture:** Asynchronous `ICoreWebView2::CapturePreview` (STA → `oneshot`) with `devicePixelRatio` scaling, CSS animation settling (`document.getAnimations()`), local `Pixel-Diff` gating, and sub-millisecond deterministic `3×3`/`5×5` median `Pixel-Assert` color/contrast verification.
-* **Optional Multi-Key Vision Proxy:** Configurable rotation across up to 10 VLM endpoints (Gemini, OpenRouter, or local custom servers) with `Per-Provider Circuit Breakers` and exponential backoff.
+### Phase 3: Native CPU `AVX2` Speech-to-Text (`whisper.dll` FFI)
+* Replace the final Python audio bridge (`:47932`) with in-process `whisper.dll` (`AVX2`, strictly CPU-pinned so 0 MB of VRAM is taken from MoE weights), capturing native WASAPI audio via `AudioWorkletNode`, resampling in Rust to `16 kHz` with DC-blocker + subnormal flush + RMS VAD, and supporting `ru | uk | en | auto` switching.
 
-### Phase 4: Clean Prefab Frontend (`ui-kit`) & Native CPU Audio
-* **Full UI Replacement:** Removing the legacy minified React bundle and CSS patch layer in favor of a lightweight, schema-driven component frontend (`Preact/React + Tailwind + ui-kit` prefabs: `kitCard`, `kitRow`, `kitToggle`, `kitSelect`, `kitSlider`, `kitButton`) with live `:8080/metrics` throughput telemetry.
-* **100% Python-Free Voice:** Replacing the final voice bridge (`:47932`) with native `whisper-rs` (`whisper.cpp`) pinned strictly to CPU `AVX2` so 100% of GPU VRAM remains dedicated to MoE inference.
+### Phase 4: Analytical Coprocessor & KV-Cache Optimizations
+* Implement `verify_tools.rs` (`compute_verify`, `data_probe`, `sys_probe`), one-shot `Output Spooling` (`<= 4 KiB` deduplicated previews), parallel read-only `tokio::JoinSet` batching, atomic multi-hunk `multi_edit`, targeted `PrefetchVirtualMemory` for `*.gguf` headers/tails, and two-stage `Anchored Compaction` (`75%` turn-boundary / `80%` mid-tool-loop).
+
+### Phase 5: 5-Stage End-to-End Verification Gate
+* Validate offline unit tests (`cargo test --offline`), cold `:8080` startup & prefill `Abort` recovery, `unstrata.exe` self-restart with `EBWebView/LOCK` verification, multi-theme `ui_map` + `Pixel-Assert` (`960px`/`1440px`, `anomalies: []`), and end-to-end tool + voice audit logging.
+
+---
 
 ## ⚡ Hardware Tiers & Throughput Calculations
 
